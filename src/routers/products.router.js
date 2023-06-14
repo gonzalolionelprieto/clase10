@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { ProductManager } from "../ProductManager.js";
+import ProductManager from "../ProductManager.js";
+
 
 const router = Router();
 
@@ -62,24 +63,26 @@ router.post("/", (req, res) => {
 
 // endpoint para actualizar un producto
 router.put("/:pid", (req, res) => {
-    const id = req.params.pid;
-    const updatedProduct = req.body;
-  
-    console.log("ID del producto:", id);
-    console.log("Datos actualizados del producto:", updatedProduct);
-  
-    try {
-      pm.updateProduct(id, updatedProduct);
-      res.json({ message: `Producto con ID ${id} actualizado correctamente` });
-    } catch (error) {
-      res.status(404).json({ error: error.message });
+  const id = req.params.pid;
+  const updatedProduct = req.body;
+
+  try {
+    if (updatedProduct.hasOwnProperty("id") && updatedProduct.id !== id) {
+      return res
+        .status(400)
+        .json({ error: "No se permite actualizar el ID del producto" });
     }
-  });
-  
+
+    pm.updateProduct(id, updatedProduct);
+    res.json({ message: `Producto con ID ${id} actualizado correctamente` });
+  } catch (error) {
+    res.status(404).json({ error: error.message });
+  }
+});
 
 // endpoint para eliminar un producto
 router.delete("/:pid", (req, res) => {
-  const id = req.params.pid;//obtenemos el id que le pasamos por url con el metodo params
+  const id = req.params.pid; //obtenemos el id que le pasamos por url con el metodo params
 
   try {
     pm.deleteProduct(id);

@@ -65,17 +65,26 @@ class ProductManager {
   }
 
   updateProduct(id, updatedProduct) {
-    const index = this.products.findIndex((p) => p.id === id);
-    if (index !== -1) {
-      this.products[index] = { ...this.products[index], ...updatedProduct };
+    const productId = parseInt(id);
+    const productIndex = this.products.findIndex((p) => p.id === productId);
+  
+    if (productIndex !== -1) {
+      const updatedFields = { ...updatedProduct };
+      delete updatedFields.id; // No se permite actualizar el ID
+  
+      Object.assign(this.products[productIndex], updatedFields);
       this.writeProducts();
     } else {
       throw new Error(`Producto con ID ${id} no encontrado.`);
     }
   }
+  
+
+  
 
   deleteProduct(id) {
-    const index = this.products.findIndex((p) => p.id === id);
+    const productId = parseInt(id); // Convertir el id a número
+    const index = this.products.findIndex((p) => p.id == id);
     if (index !== -1) {
       this.products.splice(index, 1);
       this.writeProducts();
@@ -85,4 +94,5 @@ class ProductManager {
   }
 }
 
-export { ProductManager };
+export default ProductManager;
+
