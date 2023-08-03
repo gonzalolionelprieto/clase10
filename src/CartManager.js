@@ -1,38 +1,26 @@
-import { readFile, writeFile } from "fs/promises";
+
 
 class CartManager {
-  constructor(path) {
-    this.path = path;
-    this.carts = [];
+  constructor(productManager) {
+    this.productManager = productManager;
     this.readCarts();
   }
 
   async readCarts() {
     try {
-      const data = await readFile(this.path, "utf-8");
-      this.carts = JSON.parse(data);
+      const carts = await Cart.find();
+      this.carts = carts;
     } catch (error) {
-      console.log("Error al leer el archivo de carritos:", error.message);
+      console.log("Error al leer los carritos de MongoDB:", error.message);
     }
   }
 
   async writeCarts() {
     try {
-      await writeFile(this.path, JSON.stringify(this.carts), "utf-8");
+      await Cart.insertMany(this.carts);
     } catch (error) {
-      console.log(
-        "Error al escribir en el archivo de carritos:",
-        error.message
-      );
+      console.log("Error al escribir los carritos en MongoDB:", error.message);
     }
-  }
-
-  generateId() {
-    if (this.carts.length === 0) {
-      return 1;
-    }
-    const lastCartId = this.carts[this.carts.length - 1].id;
-    return lastCartId + 1;
   }
 
   getCarts() {
@@ -40,7 +28,6 @@ class CartManager {
   }
 
   addCart() {
-    const id = this.generateId();
     const newCart = {
       id,
       products: [],
@@ -54,10 +41,37 @@ class CartManager {
     if (!cart) {
       throw new Error(`Carrito con el id ${cartId} no encontrado`);
     }
-  
+
     return cart; // Retornar el objeto cart completo con id y products
   }
-  
+
+  async addProductToCart(cartId, productId) {
+    try {
+      // Obtener el carrito específico por su ID
+      const cart = await Cart.findOne({ id: cartId });
+
+      // Obtener el producto específico por su ID
+      const product = await this.productManager.getProductById(productId);
+
+      // Verificar si el producto ya existe en el carrito
+      const existingProduct = cart.products.find((p) => p.id === productId);
+
+      if (existingProduct) {
+        // Si el producto existe, incrementar la cantidad en 1
+        existingProduct.quantity += 1;
+      } else {
+        // Si el producto no existe, agregarlo al carrito con cantidad 1
+        cart.products.push({ ...product.toObject(), quantity: 1 });
+      }
+
+      // Guardar los cambios en MongoDB
+      await cart.save();
+    } catch (error) {
+      throw new Error(
+        `Error al agregar el producto al carrito: ${error.message}`
+      );
+    }
+  }
 }
 
 export default CartManager;

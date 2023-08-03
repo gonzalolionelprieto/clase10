@@ -1,4 +1,4 @@
-import Products from "../src/models/product.model.js";
+import Products from "../../models/product.model.js";
 
 class ProductManager {
   // Método para leer productos con opciones de paginación, filtros y ordenamiento

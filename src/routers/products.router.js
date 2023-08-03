@@ -1,35 +1,86 @@
 import { Router } from "express";
 import ProductManager from "../ProductManager.js";
-
+import Products from "../models/product.model.js";
 
 const router = Router();
 
-const pm = new ProductManager("./src/BD/productos.json");
+const pm = new ProductManager();
 
-// Endpoint para leer todos los productos
-router.get("/", (req, res) => {
-  const limit = req.query.limit;
-  const products = pm.getProducts(); // Obtener los productos utilizando el método de ProductManager
-
-  if (limit) {
-    const limitedProducts = products.slice(0, limit);
-    res.json(limitedProducts);
-  } else {
-    res.json(products);
+// Ruta para mostrar todos los productos
+router.get("/render", (req, res) => {
+  try {
+    const products = pm.getProducts();
+    res.render("products", { products }); // Renderizar la vista "home.handlebars" con los productos
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-//endpoint para obtener un solo producto
-router.get("/:pid", (req, res) => {
+// Endpoint para leer todos los productos con paginación , límite, categoria y disponibilidad
+
+
+
+
+router.get("/", async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const sort = req.query.sort || "asc";
+  const category = req.query.category || null;
+  const available =
+    req.query.available === "true"
+      ? true
+      : req.query.available === "false"
+      ? false
+      : null;
+
+  if (!Number.isInteger(page) || !Number.isInteger(limit)) {
+    return res.status(400).json({
+      message: "Los parámetros 'page' y 'limit' deben ser números enteros",
+    });
+  }
+
+  if (sort !== "asc" && sort !== "desc") {
+    return res.status(400).json({
+      message:
+        "El parámetro 'sort' debe ser 'asc' (ascendente) o 'desc' (descendente)",
+    });
+  }
+
+  try {
+    const pm = new ProductManager();
+    const response = await pm.getProducts(req, {
+      page,
+      limit,
+      sort,
+      category,
+      available,
+    });
+
+    res.json(response);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+    console.log(error);
+  }
+});
+
+
+
+
+
+// Endpoint para obtener un solo producto por su ID
+router.get("/:pid", async (req, res) => {
   const id = req.params.pid;
 
   try {
-    const product = pm.getProductById(id);
+    console.log("ID del producto a consultar:", id);
+    const product = await pm.getProductById(id);
     res.json({ product });
   } catch (error) {
     res.status(404).json({ message: error.message });
   }
 });
+
+
 
 //endpoint para crear productos
 
@@ -79,6 +130,10 @@ router.put("/:pid", (req, res) => {
     res.status(404).json({ error: error.message });
   }
 });
+
+
+
+
 
 // endpoint para eliminar un producto
 router.delete("/:pid", (req, res) => {

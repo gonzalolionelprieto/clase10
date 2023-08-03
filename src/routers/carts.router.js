@@ -1,15 +1,17 @@
+// CartRouter.js
+
 import { Router } from "express";
-import CartManager from "../CartManager.js";
-import ProductManager from "../ProductManager.js";
+import CartManager from "../dao/mongoManagers/cart_mongo_manager.js";
+import ProductManager from "../dao/mongoManagers/product_mongo_Manager.js";
 
 const CartRouter = Router();
-const cartManager = new CartManager("./src/BD/carrito.json");
-const productManager = new ProductManager("./src/BD/productos.json");
+const cm = new CartManager();
+const pm = new ProductManager();
 
 // Ruta para crear un nuevo carrito
-CartRouter.post("/", (req, res) => {
+CartRouter.post("/", async (req, res) => {
   try {
-    cartManager.addCart();
+    await cm.addCart(); // Espera a que se cree el carrito
     res.status(200).json({ message: "Carrito creado exitosamente" });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -17,83 +19,50 @@ CartRouter.post("/", (req, res) => {
 });
 
 // Ruta para obtener los carritos creados
-CartRouter.get("/", (req, res) => {
+CartRouter.get("/", async (req, res) => {
   try {
-    const carts = cartManager.getCarts();
+    const carts = await cm.getCarts(); // Espera a que se obtengan los carritos
     res.status(200).json(carts);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Ruta para obtener los productos de un carrito específico
-CartRouter.get("/:cid", (req, res) => {
-  try {
-    const cartId = parseInt(req.params.cid);
-    const cart = cartManager.getCartById(cartId);
-
-    if (!cart) {
-      return res.status(404).json({ error: "Carrito no encontrado" });
-    }
-
-    const products = cart.products;
-    res.status(200).json(products);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+// carrito por id
+CartRouter.get("/:cid", async (req, res) => {
+  const cartofound = await cm.getCartById(req.params.cid); // Corregir aquí
+  res.json({ status: "success", cartofound });
 });
 
-// Ruta para obtener los productos de un carrito específico
-CartRouter.get("/:cid/products", (req, res) => {
-  try {
-    const cartId = parseInt(req.params.cid);
-    const cart = cartManager.getCartById(cartId);
+// Ruta para agregar un producto al carrito seleccionado sin redireccionar
+CartRouter.post("/:cid/products/:pid", async (req, res) => {
+  const { cid, pid } = req.params;
+  const { quantity } = req.body;
 
+  try {
+    const checkIdProduct = await pm.getProductById(pid);
+    if (!checkIdProduct) {
+      return res
+        .status(404)
+        .send({ message: `Product with ID: ${pid} not found` });
+    }
+
+    let cart = await cm.getCartById(cid);
     if (!cart) {
-      return res.status(404).json({ error: "Carrito no encontrado" });
+      // Si el carrito no existe, lo creamos
+      cart = await cm.addCart(cid);
     }
 
-    const products = cart.products;
-    res.status(200).json(products);
+    const result = await cm.addProductInCart(cid, { _id: pid, quantity });
+    console.log(result);
+
+    // Respondemos con el carrito actualizado
+    return res.status(200).json(result);
   } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-//endpoint agrega el producto seleccionado al carrito seleccionado
-
-CartRouter.post("/:cid/product/:pid", (req, res) => {
-  const cartId = req.params.cid;
-  const productId = req.params.pid;
-
-  try {
-    // Verificar si el carrito con el ID proporcionado existe
-    const cart = cartManager.getCartById(cartId);
-
-    // Verificar si el producto con el ID proporcionado existe
-    const product = productManager.getProductById(productId);
-
-    // Verificar si el producto ya existe en el carrito
-    const existingProduct = cart.products.find((p) => p.id === productId);
-
-    if (existingProduct) {
-      // Si el producto existe, incrementar la cantidad en 1
-      existingProduct.quantity += 1;
-    } else {
-      // Si el producto no existe, agregarlo al carrito con cantidad 1
-      const newProduct = {
-        id: productId,
-        quantity: 1,
-      };
-      cart.products.push(newProduct);
-    }
-
-    // Guardar los cambios en el archivo de carritos
-    cartManager.writeCarts();
-
-    res.json({ message: "Producto agregado al carrito" });
-  } catch (error) {
-    res.status(404).json({ error: error.message });
+    console.error("Error occurred:", error);
+    return res
+      .status(500)
+      .json({ message: "An error occurred while processing the request" });
   }
 });
 
